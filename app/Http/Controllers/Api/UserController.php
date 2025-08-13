@@ -4,15 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Validator; 
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
 
-    //pageinate user data
-    public function index(Request $request)
+     public function index(Request $request)
 {
     // Ambil query search dari request (jika ada)
     $search = $request->input('search');
@@ -32,13 +31,13 @@ class UserController extends Controller
     }
 
     // Ambil data user 10 per halaman
-    $users = $query->paginate(10, ['*'], 'page', $page);
+    $users = $query->paginate(1, ['*'], 'page', $page);
 
     // Kalau tidak ada hasil sama sekali
     if ($users->total() === 0) {
         return response()->json([
             'status' => false,
-            'message' => 'user tidak ditemukan'
+            'message' => 'User tidak ditemukan'
         ], 404);
     }
 
@@ -46,55 +45,74 @@ class UserController extends Controller
     if ($page > $users->lastPage()) {
         return response()->json([
             'status' => false,
-            'message' => 'halaman tidak ditemukan'
+            'message' => 'Halaman tidak ditemukan'
         ], 404);
     }
 
     // Format response custom
     return response()->json([
-    'status' => true,
-    'message' => 'Daftar user',
-    'data' => [
-        'data' => $users->items(),
-        'pagination' => [
-            'total' => $users->total(),
-            'per_page' => $users->perPage(),
-            'current_page' => $users->currentPage(),
-            'last_page' => $users->lastPage(),
-            'from' => $users->firstItem(),
-            'to' => $users->lastItem()
+        'status' => true,
+        'message' => 'Daftar user',
+        'data' => [
+            'data' => $users->items(),
+            'pagination' => [
+                'total' => $users->total(),
+                'per_page' => $users->perPage(),
+                'current_page' => $users->currentPage(),
+                'last_page' => $users->lastPage(),
+                'from' => $users->firstItem(),
+                'to' => $users->lastItem()
+            ]
         ]
-    ]
-], 200);
+    ], 200);
 }
 
-    // public function index()
-    // {
-    //     $users = User::all();
 
-    //     return response()->json([
-    //         'status' => true,
-    //         'message' => 'Daftar semua user',
-    //         'data' => $users
-    //     ], 200);
-    // }
 
     public function show($id)
-    {
-        $user = User::find($id);
+{
+    $user = User::find($id);
 
-        if (!$user) {
+    if (!$user) {
+        return response()->json([
+            'status' => false,
+            'message' => 'User tidak ditemukan'
+        ], 404);
+    }
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Data user ditemukan',
+        'data' => $user
+    ], 200);
+}
+public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email',
+            'password' => 'required|min:6'
+        ]);
+
+        if ($validator->fails()) {
             return response()->json([
                 'status' => false,
-                'message' => 'User tidak ditemukan'
-            ], 404);
+                'message' => 'Validasi gagal',
+                'errors' => $validator->errors()
+            ], 422);
         }
+
+        $user = User::create([
+            'name'     => $request->name,
+            'email'    => $request->email,
+            'password' => bcrypt($request->password)
+        ]);
 
         return response()->json([
             'status' => true,
-            'message' => 'Data user ditemukan',
+            'message' => 'User berhasil dibuat',
             'data' => $user
-        ], 200);
+        ], 201);
     }
 
     public function update(Request $request, $id)
@@ -109,9 +127,9 @@ class UserController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|required|string|max:255',
-            'email' => 'sometimes|required|email|unique:users,email,' . $id,
-            'password' => 'sometimes|required|string|min:8|confirmed',
+            'name'     => 'sometimes|required|string|max:255',
+            'email'    => 'sometimes|required|email|unique:users,email,' . $id,
+            'password' => 'sometimes|required|min:6'
         ]);
 
         if ($validator->fails()) {
@@ -122,24 +140,14 @@ class UserController extends Controller
             ], 422);
         }
 
-        // Update data jika dikirim
-        if ($request->has('name')) {
-            $user->name = $request->name;
-        }
-
-        if ($request->has('email')) {
-            $user->email = $request->email;
-        }
-
-        if ($request->has('password')) {
-            $user->password = bcrypt($request->password);
-        }
-
+        if ($request->has('name')) $user->name = $request->name;
+        if ($request->has('email')) $user->email = $request->email;
+        if ($request->has('password')) $user->password = bcrypt($request->password);
         $user->save();
 
         return response()->json([
             'status' => true,
-            'message' => 'User berhasil diupdate',
+            'message' => 'User berhasil diperbarui',
             'data' => $user
         ], 200);
     }
@@ -161,5 +169,5 @@ class UserController extends Controller
             'status' => true,
             'message' => 'User berhasil dihapus'
         ], 200);
-    }
+}
 }
